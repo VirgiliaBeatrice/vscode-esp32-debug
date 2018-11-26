@@ -1,0 +1,187 @@
+{
+    "name": "esp32-debug",
+    "displayName": "ESP32 Debug",
+    "version": "0.1.0-alpha",
+    "publisher": "haoyan.li",
+    "description": "A debugging tool for ESP32.",
+    "author": {
+        "name": "Haoyan.Li",
+        "email": "haoyan.li.ac@gmail.com"
+    },
+    "license": "MIT",
+    "keywords": [
+        "esp32 debug"
+    ],
+    "engines": {
+        "vscode": "^1.29.0",
+        "node": "^8.9.0"
+    },
+    "icon": "images/esp-debug.png",
+    "categories": [
+        "Debuggers"
+    ],
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Microsoft/vscode-mock-debug.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Microsoft/vscode-mock-debug/issues"
+    },
+    "scripts": {
+        "prepublish": "tsc -p ./src",
+        "compile": "tsc -p ./src",
+        "tslint": "tslint ./src/**/*.ts",
+        "watch": "tsc -w -p ./src",
+        "test": "mocha -u tdd ./out/tests/",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "package": "vsce package",
+        "publish": "vsce publish"
+    },
+    "dependencies": {
+        "await-notify": "1.0.1",
+        "vscode-debugadapter": "1.32.0",
+        "vscode-debugprotocol": "1.32.0"
+    },
+    "devDependencies": {
+        "@types/mocha": "2.2.48",
+        "@types/node": "^7.10.2",
+        "mocha": "5.0.1",
+        "tslint": "5.9.1",
+        "typescript": "2.6.2",
+        "vsce": "1.37.5",
+        "vscode": "1.1.17",
+        "vscode-debugadapter-testsupport": "^1.32.0"
+    },
+    "main": "./out/extension",
+    "activationEvents": [
+        "onDebug"
+    ],
+    "contributes": {
+        "breakpoints": [
+            {
+                "language": "markdown"
+            },
+            {
+                "language": "c"
+            },
+            {
+                "language": "cpp"
+            }
+        ],
+        "debuggers": [
+            {
+                "type": "esp32-debug",
+                "label": "ESP32 Debug",
+                "program": "./out/esp.js",
+                "runtime": "node",
+                "configurationAttributes": {
+                    "launch": {
+                        "required": [
+                            "program"
+                        ],
+                        "properties": {
+                            "program": {
+                                "type": "string",
+                                "description": "Absolute path to a text file.",
+                                "default": "${workspaceFolder}/built/main.elf"
+                            },
+                            "stopOnEntry": {
+                                "type": "boolean",
+                                "description": "Automatically stop after launch.",
+                                "default": true
+                            },
+                            "trace": {
+                                "type": "boolean",
+                                "description": "Enable logging of the Debug Adapter Protocol.",
+                                "default": true
+                            },
+                            "msysDir": {
+                                "type": "string",
+                                "default": "C:\\msys32"
+                            },
+                            "serverDir": {
+                                "type": "string",
+                                "description": "The cwd of GDB server",
+                                "default": "."
+                            },
+                            "serverExecutable": {
+                                "type": "string",
+                                "description": "The name of executable for GDB server.",
+                                "default": "openocd.exe"
+                            },
+                            "serverArgs": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Argments for running server.",
+                                "default": []
+                            },
+                            "openocdSearchDir": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "default": []
+                            },
+                            "openocdConfigFiles": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "default": []
+                            },
+                            "debuggerExecutable": {
+                                "type": "string",
+                                "description": "GDB debugger executable.",
+                                "default": "xtensa-gdb.exe"
+                            },
+                            "debuggerArgs": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Argments for running GDB debugger.",
+                                "default": []
+                            },
+                            "debuggerDir": {
+                                "type": "string",
+                                "default": "."
+                            },
+                            "debuggerSource": {
+                                "type": "string",
+                                "default": ""
+                            }
+                        }
+                    }
+                },
+                "initialConfigurations": [
+                    {
+                        "type": "esp32-debug",
+                        "request": "launch",
+                        "name": "Ask for file name",
+                        "program": "${workspaceFolder}/${command:AskForProgramName}",
+                        "stopOnEntry": true
+                    }
+                ],
+                "configurationSnippets": [
+                    {
+                        "label": "ESP32 Debug: Launch",
+                        "description": "A new configuration for 'debugging' a user selected markdown file.",
+                        "body": {
+                            "type": "esp32-debug",
+                            "request": "launch",
+                            "name": "Ask for file name",
+                            "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\"",
+                            "stopOnEntry": true
+                        }
+                    }
+                ],
+                "variables": {
+                    "AskForProgramName": "extension.esp32-debug.getProgramName"
+                }
+            }
+        ]
+    }
+}
