@@ -11,6 +11,10 @@ import { GDBServer } from "./backend/server";
 import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
+import * as winston from "winston";
+import * as fs from "fs";
+import { logger } from "./backend/logging";
+
 
 export interface OpenOCDArgments {
     cwd: string;
@@ -59,9 +63,13 @@ export class ESPDebugSession extends DebugSession {
         this.setDebuggerColumnsStartAt1(false);
         this.setDebuggerPathFormat("native");
 
-
-
-        console.log("Start a debug session.");
+        logger.stream({ start: -1 }).on('log',
+            (log) => {
+                this.sendEvent(new DebugAdapter.OutputEvent(`${log.level} - ${log.message} \r\n`, "console"));
+            }
+        );
+        logger.log("info", "Start a debug session.");
+        // console.log("Start a debug session.");
     }
 
     // Send capabilities
@@ -78,7 +86,8 @@ export class ESPDebugSession extends DebugSession {
     }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchConfigurationArgs): Promise<any> {
-        console.log("Get a launch request.");
+        logger.log("info", "Get a launch request");
+        // console.log("Get a launch request.");
 
         this.args = args;
         // this.controller.on('event', this.controllerEvent.bind(this));
