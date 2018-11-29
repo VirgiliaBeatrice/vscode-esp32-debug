@@ -14,6 +14,7 @@ import * as Path from "path";
 import * as winston from "winston";
 import * as fs from "fs";
 import { logger } from "./backend/logging";
+import chalk from "chalk";
 
 
 export interface OpenOCDArgments {
@@ -63,13 +64,13 @@ export class ESPDebugSession extends DebugSession {
         this.setDebuggerColumnsStartAt1(false);
         this.setDebuggerPathFormat("native");
 
-        logger.stream({ start: -1 }).on('log',
-            (log) => {
-                this.sendEvent(new DebugAdapter.OutputEvent(`${log.level} - ${log.message} \r\n`, "console"));
-            }
-        );
-        logger.log("info", "Start a debug session.");
-        // console.log("Start a debug session.");
+        logger.callback = (log) => {
+            this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
+        };
+
+        // logger.log("info", "Start a debug session.");
+        logger.info("Start a debug session.");
+        // logger.info("Start a debug session.");
     }
 
     // Send capabilities
@@ -79,15 +80,15 @@ export class ESPDebugSession extends DebugSession {
         response.body.supportTerminateDebuggee = true;
 
         this.sendResponse(response);
-        console.log("Send an initial information.");
+        logger.info("Send an initial information.");
 
         this.sendEvent(new InitializedEvent());
-        console.log("Send an initialized event.");
+        logger.info("Send an initialized event.");
     }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchConfigurationArgs): Promise<any> {
-        logger.log("info", "Get a launch request");
-        // console.log("Get a launch request.");
+        logger.info("Get a launch request");
+        // logger.info("Get a launch request.");
 
         this.args = args;
         // this.controller.on('event', this.controllerEvent.bind(this));
@@ -113,11 +114,11 @@ export class ESPDebugSession extends DebugSession {
         this.server.on('quit', this.onQuit.bind(this));
         this.server.on('launcherror', this.onLaunchError.bind(this));
         this.server.on('exit', (code, signal) => {
-            console.log(`Server process exited. CODE: ${code} SIGNAL:  ${signal}`);
+            logger.info(`Server process exited. CODE: ${code} SIGNAL:  ${signal}`);
         });
 
         await this.server.start();
-        console.info("OpenOCD server started.");
+        logger.info("OpenOCD server started.");
 
         this.debugger = new GDBDebugger(
             this.controller.debuggerApplication(),
@@ -132,11 +133,11 @@ export class ESPDebugSession extends DebugSession {
             e.body.allThreadsStopped = true;
 
             this.sendEvent(e);
-            console.log(`Send a stop event. Thread: ${threadId}`);
+            logger.info(`Send a stop event. Thread: ${threadId}`);
         });
 
         await this.debugger.start();
-        console.info("GDB debugger started.");
+        logger.info("GDB debugger started.");
         this.debugger.run();
 
 		await this.debugger.enqueueTask("gdb-set target-async on");

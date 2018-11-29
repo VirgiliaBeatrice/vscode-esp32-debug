@@ -12,6 +12,7 @@
         "outDir": "../out",
         "preserveConstEnums": true,
         "strictNullChecks": false,
-        "noUnusedParameters": false
+        "noUnusedParameters": false,
+        "experimentalDecorators": true
     }
 }

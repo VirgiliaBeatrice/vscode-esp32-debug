@@ -3,6 +3,7 @@ import { MINode, parseMI } from "./mi_parse";
 import { DebugProtocol } from "vscode-debugprotocol";
 import * as vscode from "vscode";
 import { instanceOfMIResult, instanceOfMIAsyncRecord, instanceOfMIStream } from "./mi";
+import { logger } from "./logging";
 
 interface Task {
     token: number;
@@ -101,8 +102,8 @@ export class GDBDebugger extends BackendService implements IBackendService
 
                 // notify to original request
                 task.onFinished(result);
-                console.info(`Task ${task.token} finished.`);
-                console.info(`Result: ${JSON.stringify(result)}`);
+                logger.info(`Task ${task.token} finished.`);
+                logger.info(`Result: ${JSON.stringify(result)}`);
             }
 
         }
@@ -123,7 +124,7 @@ export class GDBDebugger extends BackendService implements IBackendService
 
                 this._pendingTask.onReceived = notify;
                 this.process.stdin.write(task.token.toString() + "-" + task.cmd + "\n");
-                console.log(`Send Command No.${task.token} "${task.cmd}"`);
+                logger.info(`Send Command No.${task.token} "${task.cmd}"`);
 
             }
         );
@@ -132,7 +133,7 @@ export class GDBDebugger extends BackendService implements IBackendService
     public sendCommand(cmd: string): Promise<any> {
         this.incToken ++;
         this.process.stdin.write(this.incToken.toString() + "-" + cmd + "\n");
-        console.log(`Send Command No.${this.incToken} "${cmd}"`);
+        logger.info(`Send Command No.${this.incToken} "${cmd}"`);
 
         return new Promise(
             (resolve, reject) => {
@@ -141,7 +142,7 @@ export class GDBDebugger extends BackendService implements IBackendService
                     if (record)
                     {
                         resolve(record);
-                        // console.log(result);
+                        // logger.info(result);
                     }
                     else {
                         reject();
@@ -157,8 +158,8 @@ export class GDBDebugger extends BackendService implements IBackendService
         let record = await this.sendCommand(cmd);
 
         this.pendingTasks.delete(record.token);
-        console.log(`Command No.${record.token} "${cmd}" finished.`);
-        console.log(`Command No.${record.token} result: ${JSON.stringify(record)}.`);
+        logger.info(`Command No.${record.token} "${cmd}" finished.`);
+        logger.info(`Command No.${record.token} result: ${JSON.stringify(record)}.`);
 
         return record;
     }
@@ -186,9 +187,9 @@ export class GDBDebugger extends BackendService implements IBackendService
 
     public postProcess(content: string): Array<any>
     {
-        // console.log(content);
+        // logger.info(content);
         let records = parseMI(content);
-        // console.log(records);
+        // logger.info(records);
 
         records.forEach(
             (record) => {

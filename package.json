@@ -39,7 +39,9 @@
         "publish": "vsce publish"
     },
     "dependencies": {
+        "@types/chalk": "^2.2.0",
         "await-notify": "1.0.1",
+        "chalk": "^2.4.1",
         "vscode-debugadapter": "1.32.0",
         "vscode-debugprotocol": "1.32.0"
     },
