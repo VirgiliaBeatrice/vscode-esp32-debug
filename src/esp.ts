@@ -41,6 +41,22 @@ export class AdapterOutputEvent extends Event {
 // const FRAME_HANDLES_START = 256;
 const VAR_HANDLES_START = 256 * 256;
 
+
+function ErrorResponseWrapper(target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
+    let method: Function = descriptor.value;
+
+    descriptor.value = async function (...args) {
+        try {
+            await method.apply(this, args);
+        } catch (error) {
+            logger.error(`[AdapterException] - (${methodName}): ${error}`);
+            (this as ESPDebugSession).handleError(args[0], 0, error.message);
+        }
+    };
+
+    return descriptor;
+}
+
 export class ESPDebugSession extends LoggingDebugSession {
     private server: BackendService;
     private debugger: GDBDebugger;
@@ -191,6 +207,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 
     }
 
+    @ErrorResponseWrapper
     protected async evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): Promise<any> {
 
         let context = args.context;
@@ -213,6 +230,7 @@ export class ESPDebugSession extends LoggingDebugSession {
     public breakpointMap = new Map<string, number[]>();
     public breakpointHandles = new Handles<DebugProtocol.Breakpoint>(2);
 
+    @ErrorResponseWrapper
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): Promise<any> {
 
         const path: string = Path.normalize(args.source.path);
@@ -268,6 +286,7 @@ export class ESPDebugSession extends LoggingDebugSession {
         );
     }
 
+    @ErrorResponseWrapper
     protected async threadsRequest(response: DebugProtocol.ThreadsResponse): Promise<void> {
         if (!this.isDebugReady)
         {
@@ -325,6 +344,7 @@ export class ESPDebugSession extends LoggingDebugSession {
     public selectedThreadId: number = 0;
     public selectedFrameId: number = 0;
 
+    @ErrorResponseWrapper
     protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<void> {
         logger.debug(`Got one stackTraceRequest: threadID: ${args.threadId} | startFrame: ${args.startFrame} | level: ${args.levels}`);
         let record: MIResultBacktrace = await this.debugger.getBacktrace(args.threadId);
@@ -336,6 +356,7 @@ export class ESPDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
+    @ErrorResponseWrapper
     protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void
     {
         this.selectedFrameId = args.frameId;
@@ -352,6 +373,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 
     public variableHandles = new Handles<VariableObject>(VAR_HANDLES_START);
 
+
     private async updateVariables(): Promise<any> {
         let result = await this.debugger.updateVariableObjects();
 
@@ -366,27 +388,37 @@ export class ESPDebugSession extends LoggingDebugSession {
     private async createStackVariables(record: MIResultStackVariables): Promise<any> {
         let variables = record["variables"];
 
-        await this.updateVariables();
+        try {
+            await this.updateVariables();
+        } catch (error) {
+            logger.error(`[updateVariables] - ${error}`);
+        }
 
         let ret = await Promise.all(
             variables.map(
                 async (variable: Object) => {
-                    let varExp = variable["name"];
-                    let varName = `Local_Var_(${varExp})`;
-                    let varObj: VariableObject = undefined;
-                    let ref: number = 0;
+                    let varExp,varName,varObj,ref;
 
-                    if(this.variableHandles.hasIdentity(varName)) {
-                        varObj = this.variableHandles.getValueFromIdentity(varName);
-                        ref = this.variableHandles.getHandleFromIdentity(varName);
-                    }
-                    else {
-                        let result = await this.debugger.createVariableObject(varName, varExp);
-                        varObj = new VariableObject(result, varExp);
-                        ref = this.variableHandles.create(varObj, varName);
-                    }
+                    try {
+                        varExp = variable["name"];
+                        varName = `Local_Var_(${varExp})`;
+                        varObj = undefined;
+                        ref = 0;
 
-                    return varObj.toProtocolVariable(ref);
+                        if(this.variableHandles.hasIdentity(varName)) {
+                            varObj = this.variableHandles.getValueFromIdentity(varName);
+                            ref = this.variableHandles.getHandleFromIdentity(varName);
+                        }
+                        else {
+                            let result = await this.debugger.createVariableObject(varName, varExp);
+                            varObj = new VariableObject(result, varExp);
+                            ref = this.variableHandles.create(varObj, varName);
+                        }
+
+                        return varObj.toProtocolVariable(ref);
+                    } catch (error) {
+                        logger.error(`[${varExp}] - ${error}`);
+                    }
                 }
             )
         );
@@ -428,6 +460,7 @@ export class ESPDebugSession extends LoggingDebugSession {
         return ret;
     }
 
+    @ErrorResponseWrapper
     protected async variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): Promise<void>
     {
         let id: number = 0;
@@ -461,10 +494,12 @@ export class ESPDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
+    @ErrorResponseWrapper
     protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): void {
         this.onQuit(response);
     }
 
+    @ErrorResponseWrapper
     protected terminateRequest(response: DebugProtocol.TerminateResponse, args: DebugProtocol.TerminateArguments): void {
         this.server.exit();
         this.debugger.exit();
@@ -472,6 +507,7 @@ export class ESPDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
 	}
 
+    @ErrorResponseWrapper
 	protected async pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments): Promise<any> {
 		await this.debugger.interrupt();
 		// await this.debugger.interrupt(args.threadID);
@@ -479,6 +515,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+    @ErrorResponseWrapper
 	protected async continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): Promise<any> {
 		await this.debugger.continue();
 
@@ -486,6 +523,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+    @ErrorResponseWrapper
 	protected async stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): Promise<any> {
 		await this.debugger.step(args.threadId);
 
@@ -493,6 +531,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+    @ErrorResponseWrapper
 	protected async stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): Promise<any> {
 		await this.debugger.stepOut(args.threadId);
 
@@ -500,6 +539,7 @@ export class ESPDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
 	}
 
+    @ErrorResponseWrapper
 	protected async nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): Promise<any> {
 		await this.debugger.next();
 
@@ -523,6 +563,10 @@ export class ESPDebugSession extends LoggingDebugSession {
 
     protected onLaunchError(err: number, response) {
         this.sendErrorResponse(response, 103, `Fail to launch ${this.controller.name} GDB Server: ${err.toString()}`);
+    }
+
+    public handleError(response: any, errCode: number, message: string) {
+        this.sendErrorResponse(response, errCode, message);
     }
 }
 

@@ -2,7 +2,7 @@ import { BackendService, IBackendService, ServiceType } from "./service";
 import { MINode, parseMI } from "./mi_parse";
 import { DebugProtocol } from "vscode-debugprotocol";
 import * as vscode from "vscode";
-import { instanceOfMIResult, instanceOfMIAsyncRecord, instanceOfMIStream } from "./mi";
+import { instanceOfMIResult, instanceOfMIAsyncRecord, instanceOfMIStream, MIResult } from "./mi";
 import { logger } from "./logging";
 
 interface Task {
@@ -14,6 +14,28 @@ interface Task {
 export enum DebuggerEvents {
     ExecStopped = "1",
 
+}
+
+function HandleRecordException(target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
+    let method: Function = descriptor.value;
+
+    descriptor.value = async function (...args) {
+        let ret: MIResult = undefined;
+
+        try {
+            ret = await method.apply(this, args);
+
+            if (ret.resultClass === "error") {
+                throw new Error(`[DebuggerRecordException] - (${methodName}): ${ret.msg}`);
+            }
+
+            return ret;
+        } catch (error) {
+            logger.error(`[DebuggerException] - (${methodName}): ${error}`);
+        }
+    };
+
+    return descriptor;
 }
 
 export class GDBDebugger extends BackendService implements IBackendService
@@ -62,7 +84,7 @@ export class GDBDebugger extends BackendService implements IBackendService
         // wait for completing
         return new Promise(
             (resolve, reject) => {
-                let notify = (result) => {
+                let notify = (result: MIResult) => {
                     resolve(result);
                 };
 
@@ -118,7 +140,7 @@ export class GDBDebugger extends BackendService implements IBackendService
 
         return new Promise(
             (resolve, reject) => {
-                let notify = (result) => {
+                let notify = (result: MIResult) => {
                     resolve(result);
                 };
 
@@ -223,6 +245,7 @@ export class GDBDebugger extends BackendService implements IBackendService
                             // 	this._waiters.get("Stop")();
                             // }
                             break;
+                            // TODO: Bug?
                         case "running":
                             this.isRunning = true;
                             break;
@@ -243,6 +266,7 @@ export class GDBDebugger extends BackendService implements IBackendService
     // 	return record;
     }
 
+    @HandleRecordException
     public async setBreakpoint(path: string, bp: DebugProtocol.SourceBreakpoint): Promise<any>
     {
         // if (this._breakpoints.has(path)) {
@@ -257,6 +281,7 @@ export class GDBDebugger extends BackendService implements IBackendService
         return result;
     }
 
+    @HandleRecordException
     public async clearBreakpoints(bps: Array<number>): Promise<any> {
         let deleteTasks = await Promise.all(
             bps.map(
@@ -275,6 +300,7 @@ export class GDBDebugger extends BackendService implements IBackendService
         // );
     }
 
+    @HandleRecordException
     public async clearBreakpoint(number: number): Promise<any> {
         let result = await this.enqueueTask(`break-delete ${number}`);
 
@@ -293,6 +319,7 @@ export class GDBDebugger extends BackendService implements IBackendService
         // );
     }
 
+    @HandleRecordException
     public async getThreads(threadID?: number): Promise<any> {
         let result = await this.enqueueTask(`thread-info`);
         // let result = await this.executeCommand(`thread-info`);
@@ -300,6 +327,7 @@ export class GDBDebugger extends BackendService implements IBackendService
         return result;
     }
 
+    @HandleRecordException
     public async getBacktrace(threadID?: number): Promise<any> {
         await this.enqueueTask(`thread-select ${threadID}`);
         let result = await this.enqueueTask("stack-list-frames", true);
@@ -307,17 +335,21 @@ export class GDBDebugger extends BackendService implements IBackendService
         return result;
     }
 
+    @HandleRecordException
     public async getScope(frameId?: number): Promise<any> {
         await this.enqueueTask(`stack-select-frame ${frameId}`);
         // let result = await this.enqueueTask(`stack-list`)
+        return undefined;
     }
 
+    @HandleRecordException
     public async getStackVariables(threadID: number, frameId: number): Promise<any> {
         let result = await this.enqueueTask(`stack-list-variables --thread ${threadID} --frame ${frameId} --simple-values`);
 
         return result;
     }
 
+    @HandleRecordException
     public async createVariableObject(varName: string, varExp: string): Promise<any> {
         let result = await this.enqueueTask(`var-create ${varName} * ${varExp}`);
 
@@ -325,18 +357,21 @@ export class GDBDebugger extends BackendService implements IBackendService
 
     }
 
+    @HandleRecordException
     public async updateVariableObjects(): Promise<any> {
         let result = await this.enqueueTask(`var-update --all-values *`);
 
         return result;
     }
 
+    @HandleRecordException
     public async getVariableChildren(varName: string): Promise<any> {
         let result = await this.enqueueTask(`var-list-children --simple-values ${varName}`);
 
         return result;
     }
 
+    @HandleRecordException
 	public async interrupt(threadID?: number): Promise<any> {
 		// Request "Interrupt" has the highest priority,
 		// "isRunning" state will be ignored.
@@ -346,12 +381,14 @@ export class GDBDebugger extends BackendService implements IBackendService
 		return result;
 	}
 
+    @HandleRecordException
 	public async continue(threadID?: number): Promise<any> {
 		let result = await this.enqueueTask(`exec-continue`);
 
 		return result;
 	}
 
+    @HandleRecordException
 	public async step(threadID: number): Promise<any> {
         // await this.enqueueTask(`thread-select ${threadID}`);
 		let result = await this.enqueueTask(`exec-step`, true);
@@ -359,6 +396,7 @@ export class GDBDebugger extends BackendService implements IBackendService
 		return result;
 	}
 
+    @HandleRecordException
 	public async stepOut(threadID: number): Promise<any> {
         // await this.enqueueTask(`thread-select ${threadID}`);
 		let result = await this.enqueueTask(`exec-finish`, true);
@@ -366,6 +404,7 @@ export class GDBDebugger extends BackendService implements IBackendService
 		return result;
 	}
 
+    @HandleRecordException
 	public async next(): Promise<any> {
 		let result = await this.enqueueTask(`exec-next`);
 

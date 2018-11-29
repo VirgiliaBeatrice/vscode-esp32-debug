@@ -1,7 +1,11 @@
 import * as fs from "fs";
 import * as os from "os";
+import chalk from "chalk";
 import { EventEmitter } from "events";
 
+
+const errorColor = chalk.bold.red;
+const warningColor = chalk.keyword('orange');
 interface ILogInfo {
     level: string;
     message: string;
@@ -44,8 +48,11 @@ export class Logger extends EventEmitter {
         };
 
         let output = undefined;
+        let selectedColor = info.level === "error"? errorColor : warningColor;
+        let styledLevel = selectedColor(info.level.toUpperCase());
+
         if (this.isHumanFriendly) {
-            output = `${info.timestamp} - ${info.level.toUpperCase()}: ${info.message}`;
+            output = `${info.timestamp} - ${styledLevel}: ${info.message}`;
         }
         else {
             output = JSON.stringify(info);
