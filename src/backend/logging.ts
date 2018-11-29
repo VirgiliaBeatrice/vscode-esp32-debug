@@ -59,7 +59,10 @@ export class Logger extends EventEmitter {
             output + os.EOL
         );
 
-        this.callback(output + os.EOL);
+        if (this.callback)
+        {
+            this.callback(output + os.EOL);
+        }
     }
 
     @ToLog

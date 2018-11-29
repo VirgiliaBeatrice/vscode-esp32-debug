@@ -1,7 +1,7 @@
 import { DebugProtocol } from "vscode-debugprotocol";
 // import { EventEmitter } from "events";
 // import * as ChildProcess from "child_process";
-import { DebugSession, TerminatedEvent, InitializedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
+import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
 import * as DebugAdapter from "vscode-debugadapter";
 import { BackendService } from "./backend/service";
 import { GDBServerController, LaunchConfigurationArgs } from "./controller/gdb";
@@ -41,7 +41,7 @@ export class AdapterOutputEvent extends Event {
 // const FRAME_HANDLES_START = 256;
 const VAR_HANDLES_START = 256 * 256;
 
-export class ESPDebugSession extends DebugSession {
+export class ESPDebugSession extends LoggingDebugSession {
     private server: BackendService;
     private debugger: GDBDebugger;
     private args: LaunchConfigurationArgs;
@@ -58,15 +58,15 @@ export class ESPDebugSession extends DebugSession {
     private _initialized: Subject = new Subject();
 
     public constructor() {
-        super();
+        super("mock-debug.txt");
 
         this.setDebuggerLinesStartAt1(false);
         this.setDebuggerColumnsStartAt1(false);
         this.setDebuggerPathFormat("native");
 
-        logger.callback = (log) => {
-            this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
-        };
+        // logger.callback = (log) => {
+        //     this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
+        // };
 
         // logger.log("info", "Start a debug session.");
         logger.info("Start a debug session.");
@@ -78,6 +78,7 @@ export class ESPDebugSession extends DebugSession {
         // response.body.supportsRestartRequest = true;
         response.body.supportsTerminateRequest = true;
         response.body.supportTerminateDebuggee = true;
+        response.body.supportsDelayedStackTraceLoading= false;
 
         this.sendResponse(response);
         logger.info("Send an initial information.");
@@ -87,6 +88,7 @@ export class ESPDebugSession extends DebugSession {
     }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchConfigurationArgs): Promise<any> {
+        DebugAdapter.logger.setup(DebugAdapter.Logger.LogLevel.Verbose, false);
         logger.info("Get a launch request");
         // logger.info("Get a launch request.");
 
@@ -324,6 +326,7 @@ export class ESPDebugSession extends DebugSession {
     public selectedFrameId: number = 0;
 
     protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<void> {
+        logger.debug(`Got one stackTraceRequest: threadID: ${args.threadId} | startFrame: ${args.startFrame} | level: ${args.levels}`);
         let record: MIResultBacktrace = await this.debugger.getBacktrace(args.threadId);
         this.selectedThreadId = args.threadId;
 
@@ -479,24 +482,28 @@ export class ESPDebugSession extends DebugSession {
 	protected async continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): Promise<any> {
 		await this.debugger.continue();
 
+        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
 		this.sendResponse(response);
 	}
 
 	protected async stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): Promise<any> {
 		await this.debugger.step(args.threadId);
 
+        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
 		this.sendResponse(response);
 	}
 
 	protected async stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): Promise<any> {
 		await this.debugger.stepOut(args.threadId);
 
-		this.sendResponse(response);
+        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
+        this.sendResponse(response);
 	}
 
 	protected async nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): Promise<any> {
 		await this.debugger.next();
 
+        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
 		this.sendResponse(response);
 	}
 

@@ -353,14 +353,14 @@ export class GDBDebugger extends BackendService implements IBackendService
 	}
 
 	public async step(threadID: number): Promise<any> {
-        await this.enqueueTask(`thread-select ${threadID}`);
+        // await this.enqueueTask(`thread-select ${threadID}`);
 		let result = await this.enqueueTask(`exec-step`, true);
 
 		return result;
 	}
 
 	public async stepOut(threadID: number): Promise<any> {
-        await this.enqueueTask(`thread-select ${threadID}`);
+        // await this.enqueueTask(`thread-select ${threadID}`);
 		let result = await this.enqueueTask(`exec-finish`, true);
 
 		return result;
