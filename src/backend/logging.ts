@@ -13,7 +13,7 @@ const colorLevel = {
 
 // const errorColor = chalk.bold.red;
 // const warningColor = chalk.keyword('orange');
-interface ILogInfo {
+export interface ILogInfo {
     level: string;
     message: string;
     timestamp: string;
@@ -45,12 +45,12 @@ export class Logger extends EventEmitter {
         // this.transports = [];
         // this.transports.push(fs.createWriteStream("/dev/null"));
         this.transport = fs.createWriteStream("console_log");
-        this.console = process.stdout;
+        // this.console = process.stdout;
         // this.isHumanFriendly = true;
         this.on("log",
             (info: ILogInfo) => {
                 this.transport.write(info.toJSON());
-                this.console.write(info.toString(true));
+                // this.console.write(info.toString(true));
             }
         );
     }

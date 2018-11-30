@@ -1,7 +1,7 @@
 import { DebugProtocol } from "vscode-debugprotocol";
 // import { EventEmitter } from "events";
 // import * as ChildProcess from "child_process";
-import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
+import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source, OutputEvent } from "vscode-debugadapter";
 // import * as DebugAdapter from "vscode-debugadapter";
 import { BackendService } from "./backend/service";
 import { GDBServerController, LaunchConfigurationArgs } from "./controller/gdb";
@@ -11,7 +11,7 @@ import { GDBServer } from "./backend/server";
 import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
-import { logger } from "./backend/logging";
+import { logger, ILogInfo } from "./backend/logging";
 
 
 export interface OpenOCDArgments {
@@ -54,7 +54,7 @@ function ErrorResponseWrapper(target: any, methodName: string, descriptor: Prope
     return descriptor;
 }
 
-export class ESPDebugSession extends LoggingDebugSession {
+export class ESPDebugSession extends DebugSession {
     private server: BackendService;
     private debugger: GDBDebugger;
     private args: LaunchConfigurationArgs;
@@ -80,6 +80,10 @@ export class ESPDebugSession extends LoggingDebugSession {
         // logger.callback = (log) => {
         //     this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
         // };
+
+        logger.on("log", (info: ILogInfo) => {
+            this.sendEvent(new OutputEvent(`${info.toString(true)}`, "stdout"));
+        });
 
         // logger.log("info", "Start a debug session.");
         logger.info("Start a debug session.");
