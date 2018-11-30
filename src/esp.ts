@@ -1,8 +1,8 @@
 import { DebugProtocol } from "vscode-debugprotocol";
 // import { EventEmitter } from "events";
 // import * as ChildProcess from "child_process";
-import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
-import * as DebugAdapter from "vscode-debugadapter";
+import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
+// import * as DebugAdapter from "vscode-debugadapter";
 import { BackendService } from "./backend/service";
 import { GDBServerController, LaunchConfigurationArgs } from "./controller/gdb";
 import { OpenOCDDebugController } from "./controller/openocd";
@@ -11,8 +11,12 @@ import { GDBServer } from "./backend/server";
 import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
+<<<<<<< HEAD
 import * as fs from "fs";
 import { logger, ILogInfo } from "./backend/logging";
+=======
+import { logger } from "./backend/logging";
+>>>>>>> d45cfa18fb2a3981da16b9215e676cd8b55259eb
 
 
 export interface OpenOCDArgments {
@@ -72,7 +76,7 @@ export class ESPDebugSession extends LoggingDebugSession {
     private _initialized: Subject = new Subject();
 
     public constructor() {
-        super("mock-debug.txt");
+        super();
 
         this.setDebuggerLinesStartAt1(false);
         this.setDebuggerColumnsStartAt1(false);
@@ -106,7 +110,7 @@ export class ESPDebugSession extends LoggingDebugSession {
     }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchConfigurationArgs): Promise<any> {
-        DebugAdapter.logger.setup(DebugAdapter.Logger.LogLevel.Verbose, false);
+        // DebugAdapter.logger.setup(DebugAdapter.Logger.LogLevel.Verbose, false);
         logger.info("Get a launch request");
         // logger.info("Get a launch request.");
 
@@ -521,7 +525,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 	protected async continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): Promise<any> {
 		await this.debugger.continue();
 
-        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
+        this.sendEvent(new ContinuedEvent(args.threadId, true));
 		this.sendResponse(response);
 	}
 
@@ -529,7 +533,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 	protected async stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): Promise<any> {
 		await this.debugger.step(args.threadId);
 
-        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
+        this.sendEvent(new ContinuedEvent(args.threadId, true));
 		this.sendResponse(response);
 	}
 
@@ -537,7 +541,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 	protected async stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): Promise<any> {
 		await this.debugger.stepOut(args.threadId);
 
-        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
+        this.sendEvent(new ContinuedEvent(args.threadId, true));
         this.sendResponse(response);
 	}
 
@@ -545,7 +549,7 @@ export class ESPDebugSession extends LoggingDebugSession {
 	protected async nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): Promise<any> {
 		await this.debugger.next();
 
-        this.sendEvent(new DebugAdapter.ContinuedEvent(args.threadId, true));
+        this.sendEvent(new ContinuedEvent(args.threadId, true));
 		this.sendResponse(response);
 	}
 

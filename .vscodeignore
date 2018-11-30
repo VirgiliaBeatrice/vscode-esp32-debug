@@ -5,3 +5,4 @@ appveyor.yml
 src/**/*
 out/tests/**/*
 **/*.js.map
+console_log
