@@ -25,6 +25,15 @@ class ESPDebugExtention {
             })
         );
 
+        // context.subscriptions.push(
+        //     vscode.commands.registerCommand(
+        //         "extension.esp32-debug.getExtensionPath",
+        //         (config) => {
+        //             return vscode.extensions.getExtension("haoyan-li.esp32-debug").extensionPath;
+        //         }
+        //     )
+        // )
+
         context.subscriptions.push(
             vscode.debug.onDidReceiveDebugSessionCustomEvent(this.onReceivedCustomEvent.bind(this))
         );
@@ -112,6 +121,8 @@ class ESPDebugConfigurationProvider implements vscode.DebugConfigurationProvider
                 return undefined;	// abort launch
             });
         }
+
+        config.extensionPath = vscode.extensions.getExtension("haoyan-li.esp32-debug").extensionPath;
 
         return config;
     }

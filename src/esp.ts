@@ -1,7 +1,7 @@
 import { DebugProtocol } from "vscode-debugprotocol";
 // import { EventEmitter } from "events";
 // import * as ChildProcess from "child_process";
-import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
+import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, OutputEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
 // import * as DebugAdapter from "vscode-debugadapter";
 import { BackendService } from "./backend/service";
 import { GDBServerController, LaunchConfigurationArgs } from "./controller/gdb";
@@ -11,12 +11,7 @@ import { GDBServer } from "./backend/server";
 import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
-<<<<<<< HEAD
-import * as fs from "fs";
-import { logger, ILogInfo } from "./backend/logging";
-=======
-import { logger } from "./backend/logging";
->>>>>>> d45cfa18fb2a3981da16b9215e676cd8b55259eb
+import { ILogInfo, createLogger } from "./backend/logging";
 
 
 export interface OpenOCDArgments {
@@ -43,6 +38,7 @@ export class AdapterOutputEvent extends Event {
 // const FRAME_HANDLES_START = 256;
 const VAR_HANDLES_START = 256 * 256;
 
+export const logger = createLogger();
 
 function ErrorResponseWrapper(target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
     let method: Function = descriptor.value;
@@ -85,8 +81,9 @@ export class ESPDebugSession extends LoggingDebugSession {
         // logger.callback = (log) => {
         //     this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
         // };
+        // logger.addTransport();
         logger.on("log", (info: ILogInfo) => {
-            this.sendEvent(new DebugAdapter.OutputEvent(info.toString(true), "stdout"));
+            this.sendEvent(new OutputEvent(info.toString(true), "stdout"));
 
         });
 
