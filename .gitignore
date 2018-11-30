@@ -4,3 +4,7 @@ out/
 npm-debug.log
 mock-debug.txt
 *.vsix
+.vscode/tasks.json
+console_log
+.vscode/launch.json
+.vscode/settings.json
