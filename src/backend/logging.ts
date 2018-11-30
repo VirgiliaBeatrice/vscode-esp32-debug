@@ -13,7 +13,7 @@ const colorLevel = {
 
 // const errorColor = chalk.bold.red;
 // const warningColor = chalk.keyword('orange');
-interface ILogInfo {
+export interface ILogInfo {
     level: string;
     message: string;
     timestamp: string;

@@ -11,10 +11,8 @@ import { GDBServer } from "./backend/server";
 import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
-import * as winston from "winston";
 import * as fs from "fs";
-import { logger } from "./backend/logging";
-import chalk from "chalk";
+import { logger, ILogInfo } from "./backend/logging";
 
 
 export interface OpenOCDArgments {
@@ -83,6 +81,10 @@ export class ESPDebugSession extends LoggingDebugSession {
         // logger.callback = (log) => {
         //     this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
         // };
+        logger.on("log", (info: ILogInfo) => {
+            this.sendEvent(new DebugAdapter.OutputEvent(info.toString(true), "stdout"));
+
+        });
 
         // logger.log("info", "Start a debug session.");
         logger.info("Start a debug session.");
