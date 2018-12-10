@@ -1,7 +1,7 @@
 {
     "name": "esp32-debug",
     "displayName": "ESP32 Debug",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "publisher": "haoyan-li",
     "description": "VSCode debugging extension for ESP32.",
     "author": {
