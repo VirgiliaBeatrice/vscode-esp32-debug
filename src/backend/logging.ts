@@ -46,11 +46,7 @@ export class Logger extends EventEmitter {
     public addTransport(path?: string): void {
             // this.transports = [];
         // this.transports.push(fs.createWriteStream("/dev/null"));
-<<<<<<< HEAD
-        this.transport = fs.createWriteStream("console_log");
-=======
         this.transport = fs.createWriteStream(`${path? path : this._logFullPath}/console_log`);
->>>>>>> 9d6baadbc301660dac3c38c8eb0cdfa18b8d41f1
         // this.console = process.stdout;
         // this.isHumanFriendly = true;
         this.on("log",
