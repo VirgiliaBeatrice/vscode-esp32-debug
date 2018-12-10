@@ -12,6 +12,7 @@ import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
 import { ILogInfo, createLogger } from "./backend/logging";
+import { Mutex } from "await-semaphore";
 
 
 export interface OpenOCDArgments {
@@ -67,6 +68,7 @@ export class ESPDebugSession extends DebugSession {
     protected started: boolean;
     protected isDebugReady: boolean = false;
     protected stopped: boolean;
+    protected requestHandling: Mutex = new Mutex();
 
     private _debuggerReady: Subject = new Subject();
     private _initialized: Subject = new Subject();
@@ -87,9 +89,9 @@ export class ESPDebugSession extends DebugSession {
 
         });
 
-        logger.on("log", (info: ILogInfo) => {
-            this.sendEvent(new OutputEvent(`${info.toString(true)}`, "stdout"));
-        });
+        // logger.on("log", (info: ILogInfo) => {
+        //     this.sendEvent(new OutputEvent(`${info.toString(true)}`, "stdout"));
+        // });
 
         // logger.log("info", "Start a debug session.");
         logger.info("Start a debug session.");
@@ -98,6 +100,7 @@ export class ESPDebugSession extends DebugSession {
 
     // Send capabilities
     protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
+        logger.debug("Receive an initialize request.");
         // response.body.supportsRestartRequest = true;
         response.body.supportsTerminateRequest = true;
         response.body.supportTerminateDebuggee = true;
@@ -112,7 +115,10 @@ export class ESPDebugSession extends DebugSession {
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchConfigurationArgs): Promise<any> {
         // DebugAdapter.logger.setup(DebugAdapter.Logger.LogLevel.Verbose, false);
-        logger.info("Get a launch request");
+        logger.debug("Receive a launch request.");
+        // logger.info("Get a launch request");
+        let release = await this.requestHandling.acquire();
+
         // logger.info("Get a launch request.");
 
         this.args = args;
@@ -172,8 +178,16 @@ export class ESPDebugSession extends DebugSession {
         await this.debugger.enqueueTask("break-insert -t -h app_main");
         await this.debugger.enqueueTask("exec-continue");
 
-        this._debuggerReady.notifyAll();
         this.debugger.isInitialized = true;
+        logger.debug("Debugger is ready. [Notification]");
+        this._waiters.forEach(
+            (notify) => {
+                notify();
+            }
+        );
+        // this._debuggerReady.notifyAll();
+        this.isDebugReady = true;
+        release();
 
         // this.debugger.start().then(async () => {
         // 	console.info("GDB debugger started.");
@@ -216,6 +230,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
     protected async evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): Promise<any> {
+        logger.debug("Receive an evaluate request.");
 
         let context = args.context;
         let result= undefined;
@@ -239,13 +254,42 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): Promise<any> {
+        logger.debug("Receive a setBreakPoints request.");
 
         const path: string = Path.normalize(args.source.path);
         const currentBreakpoints: DebugProtocol.SourceBreakpoint[] = args.breakpoints || [];
 
+        let release = await this.requestHandling.acquire();
+
         if (!this.isDebugReady){
-            await this._debuggerReady.wait(60000);
-            this.isDebugReady = true;
+            release();
+            let timeout = await new Promise(
+                (resolve) =>
+                {
+                    let callback = () =>
+                    {
+                        resolve(true);
+                    };
+
+                    this._waiters.push(callback);
+
+                    setTimeout(
+                        () =>
+                        {
+                            resolve(false);
+                        },
+                        10000
+                    );
+                }
+            );
+            if (!timeout) {
+                logger.warn("Timeout - {setBreakPointsRequest}");
+            }
+            else {
+                this.isDebugReady = true;
+            }
+
+            release = undefined;
         }
 
         // Clear all bps for this file.
@@ -272,8 +316,9 @@ export class ESPDebugSession extends DebugSession {
             breakpoints: actualBreakpoints
         };
 
-
-
+        if (release) {
+            release();
+        }
         this.sendResponse(response);
     }
 
@@ -293,19 +338,58 @@ export class ESPDebugSession extends DebugSession {
         );
     }
 
+    private _waiters: Array<Function> = [];
+
     @ErrorResponseWrapper
     protected async threadsRequest(response: DebugProtocol.ThreadsResponse): Promise<void> {
+        logger.debug("Receive a threads request.");
+
+        let release = await this.requestHandling.acquire();
+
         if (!this.isDebugReady)
         {
-            await this._debuggerReady.wait(60000);
-            // this.isDebugReady = true;
+            release();
+            let timeout = await new Promise(
+                (resolve) => {
+                    let id = setTimeout(
+                        () => {
+                            resolve(false);
+                        },
+                        10000
+                        );
+
+                    let callback = () => {
+                        resolve(true);
+                        clearTimeout(id);
+                    };
+                    this._waiters.push(callback);
+
+                }
+            );
+            // let timeout = await this._debuggerReady.wait(10000);
+            if (!timeout)
+            {
+                logger.warn("Timeout - {threadsRequest}");
+                // throw new Error("Timeout");
+            }
+            else
+            {
+                this.isDebugReady = true;
+            }
+
+            release = undefined;
         }
+
         let record: MIResultThread = await this.debugger.getThreads();
 
         response.body = {
             threads: ESPDebugSession.CreateThreads(record).reverse()
         };
 
+        if (release)
+        {
+            release();
+        }
         this.sendResponse(response);
     }
 
@@ -353,7 +437,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
     protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<void> {
-        logger.debug(`Got one stackTraceRequest: threadID: ${args.threadId} | startFrame: ${args.startFrame} | level: ${args.levels}`);
+        logger.debug(`Receive a stackTrace request: threadID: ${args.threadId} | startFrame: ${args.startFrame} | level: ${args.levels}`);
         let record: MIResultBacktrace = await this.debugger.getBacktrace(args.threadId);
         this.selectedThreadId = args.threadId;
 
@@ -366,6 +450,7 @@ export class ESPDebugSession extends DebugSession {
     @ErrorResponseWrapper
     protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void
     {
+        logger.debug("Receive a scopes request.");
         this.selectedFrameId = args.frameId;
 
         response.body = {
@@ -470,6 +555,8 @@ export class ESPDebugSession extends DebugSession {
     @ErrorResponseWrapper
     protected async variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): Promise<void>
     {
+        logger.debug("Receive a variables request.");
+
         let id: number = 0;
         let record = undefined;
         let variables: Variable[] = undefined;
@@ -503,11 +590,14 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
     protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): void {
+        logger.debug("Receive a disconnect request.");
+
         this.onQuit(response);
     }
 
     @ErrorResponseWrapper
     protected terminateRequest(response: DebugProtocol.TerminateResponse, args: DebugProtocol.TerminateArguments): void {
+        logger.debug("Receive a terminate request.");
         this.server.exit();
         this.debugger.exit();
         this.sendEvent(new TerminatedEvent(false));
@@ -516,6 +606,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
 	protected async pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments): Promise<any> {
+        logger.debug("Receive a pause request.");
 		await this.debugger.interrupt();
 		// await this.debugger.interrupt(args.threadID);
 
@@ -524,6 +615,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
 	protected async continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): Promise<any> {
+        logger.debug("Receive a continue request.");
 		await this.debugger.continue();
 
         this.sendEvent(new ContinuedEvent(args.threadId, true));
@@ -532,6 +624,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
 	protected async stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): Promise<any> {
+        logger.debug("Receive a stepIn request.");
 		await this.debugger.step(args.threadId);
 
         this.sendEvent(new ContinuedEvent(args.threadId, true));
@@ -540,6 +633,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
 	protected async stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): Promise<any> {
+        logger.debug("Receive a stepOut request.");
 		await this.debugger.stepOut(args.threadId);
 
         this.sendEvent(new ContinuedEvent(args.threadId, true));
@@ -548,6 +642,7 @@ export class ESPDebugSession extends DebugSession {
 
     @ErrorResponseWrapper
 	protected async nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): Promise<any> {
+        logger.debug("Receive a next request.");
 		await this.debugger.next();
 
         this.sendEvent(new ContinuedEvent(args.threadId, true));
