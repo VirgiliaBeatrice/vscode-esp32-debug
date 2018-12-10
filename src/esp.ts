@@ -1,7 +1,11 @@
 import { DebugProtocol } from "vscode-debugprotocol";
 // import { EventEmitter } from "events";
 // import * as ChildProcess from "child_process";
+<<<<<<< HEAD
 import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source, OutputEvent } from "vscode-debugadapter";
+=======
+import { LoggingDebugSession, DebugSession, TerminatedEvent, InitializedEvent, OutputEvent, ContinuedEvent, Event, Breakpoint, StoppedEvent, Thread, StackFrame, Scope, Variable, Source } from "vscode-debugadapter";
+>>>>>>> 9d6baadbc301660dac3c38c8eb0cdfa18b8d41f1
 // import * as DebugAdapter from "vscode-debugadapter";
 import { BackendService } from "./backend/service";
 import { GDBServerController, LaunchConfigurationArgs } from "./controller/gdb";
@@ -11,7 +15,11 @@ import { GDBServer } from "./backend/server";
 import { Subject } from "await-notify";
 import { MIResultThread, MIResultBacktrace, MIResultCreateVaraibleObject, MIResultListChildren, MIResultChildInfo, MIResultChangeListInfo, MIResultStackVariables } from "./backend/mi";
 import * as Path from "path";
+<<<<<<< HEAD
 import { logger, ILogInfo } from "./backend/logging";
+=======
+import { ILogInfo, createLogger } from "./backend/logging";
+>>>>>>> 9d6baadbc301660dac3c38c8eb0cdfa18b8d41f1
 
 
 export interface OpenOCDArgments {
@@ -38,6 +46,7 @@ export class AdapterOutputEvent extends Event {
 // const FRAME_HANDLES_START = 256;
 const VAR_HANDLES_START = 256 * 256;
 
+export const logger = createLogger();
 
 function ErrorResponseWrapper(target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
     let method: Function = descriptor.value;
@@ -80,6 +89,11 @@ export class ESPDebugSession extends DebugSession {
         // logger.callback = (log) => {
         //     this.sendEvent(new DebugAdapter.OutputEvent(chalk`${log}`, "stdout"));
         // };
+        // logger.addTransport();
+        logger.on("log", (info: ILogInfo) => {
+            this.sendEvent(new OutputEvent(info.toString(true), "stdout"));
+
+        });
 
         logger.on("log", (info: ILogInfo) => {
             this.sendEvent(new OutputEvent(`${info.toString(true)}`, "stdout"));

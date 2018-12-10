@@ -3,7 +3,7 @@ import { MINode, parseMI } from "./mi_parse";
 import { DebugProtocol } from "vscode-debugprotocol";
 import * as vscode from "vscode";
 import { instanceOfMIResult, instanceOfMIAsyncRecord, instanceOfMIStream, MIResult } from "./mi";
-import { logger } from "./logging";
+import { logger } from "../esp";
 
 interface Task {
     token: number;

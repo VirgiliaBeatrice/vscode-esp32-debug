@@ -39,12 +39,18 @@ export class Logger extends EventEmitter {
     // public info: ILogInfo;
     // public callback: (output) => void;
 
-    constructor() {
+    constructor(private _logFullPath?: string) {
         super();
+    }
 
-        // this.transports = [];
+    public addTransport(path?: string): void {
+            // this.transports = [];
         // this.transports.push(fs.createWriteStream("/dev/null"));
+<<<<<<< HEAD
         this.transport = fs.createWriteStream("console_log");
+=======
+        this.transport = fs.createWriteStream(`${path? path : this._logFullPath}/console_log`);
+>>>>>>> 9d6baadbc301660dac3c38c8eb0cdfa18b8d41f1
         // this.console = process.stdout;
         // this.isHumanFriendly = true;
         this.on("log",
@@ -114,9 +120,9 @@ export class Logger extends EventEmitter {
 }
 
 
-export const logger = createLogger();
+// export const logger = createLogger();
 
-export function createLogger(): Logger
+export function createLogger(path?: string): Logger
 {
-    return new Logger();
+    return new Logger(path);
 }
